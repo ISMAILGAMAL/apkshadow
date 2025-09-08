@@ -7,8 +7,6 @@ This initial version supports:
 - Decompiling APKs with jadx
 
 ## Install
-Clone and install locally:
+Install locally using pip:
 ```bash
-git clone https://github.com/ISMAILGAMAL/apkshadow
-cd apkshadow
-pip install -e .
+pip install apkshadow
