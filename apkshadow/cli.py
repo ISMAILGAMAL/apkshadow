@@ -71,10 +71,9 @@ def initDecompileParser(subparsers):
     )
 
     decompile_parser.add_argument(
-        "-t", "--threads",
-        type=int,
-        default=1,
-        help="Number of parallel decompilation threads (default: 1)"
+        "-m", "--mode",
+        default="apktool",
+        help="Tool to use for decompilation (default: 'apktool')"
     )
 
 
@@ -110,4 +109,4 @@ def main():
             pattern_source, args.device, regex_mode, args.output
         )
     elif args.action == "decompile":
-        decompile_action.handleDecompileAction(pattern_source, args.device, regex_mode, args.source, args.output)
+        decompile_action.handleDecompileAction(pattern_source, args.device, regex_mode, args.source, args.output, args.mode)

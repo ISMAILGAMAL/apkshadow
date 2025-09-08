@@ -32,17 +32,13 @@ def getPackagesFromDevice(pattern_source, device, regex_mode):
         validateRegex(patterns)
 
     try:
-        cmd = ["adb"]
-        if device:
-            cmd += ["-s", device]
-        cmd += ["shell", "pm", "list", "packages", "-f"]
-
-        output = cmdrunner.runAdbCommand(cmd)
+        args = ["shell", "pm", "list", "packages", "-f"]
+        result = cmdrunner.runAdb(args, device)
     except cmdrunner.AdbError as e:
         e.printHelperMessage()
-        exit(1)
+        exit(e.returncode)
 
-    for package in output.splitlines():
+    for package in result.stdout.splitlines():
         match = re.match(r"package:(.*\.apk)=(.*)", package)
         apk_path = match.group(1)  # type: ignore
         package_name = match.group(2)  # type: ignore

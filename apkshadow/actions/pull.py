@@ -17,12 +17,9 @@ def handlePullAction(pattern_source, device, regex_mode, outputDir="./"):
         out_path = os.path.join(packageDir, apk_filename)
         try:
             os.makedirs(packageDir, exist_ok=True)
-
-            cmd = ["adb"]
-            if device:
-                cmd += ["-s", device]   
-            cmd += ["pull", apk_path, out_path]
-            cmdrunner.runAdbCommand(cmd)
+  
+            args = ["pull", apk_path, out_path]
+            cmdrunner.runAdb(args, device)
 
             utils.debug(
                 f"{utils.SUCCESS}[+] Pulled {package_name} → {utils.INFO}{out_path}{utils.RESET}"
