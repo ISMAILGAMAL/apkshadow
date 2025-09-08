@@ -1,0 +1,13 @@
+[project]
+name = "apkshadow"
+version = "0.1.0"
+description = "Android APK automation tool for bug bounty"
+authors = [{name = "ISMAILSHADOW"}]
+dependencies = ["tqdm"]
+
+[project.scripts]
+apkshadow = "apkshadow.cli:main"
+
+[build-system]
+requires = ["setuptools >= 77.0.3"]
+build-backend = "setuptools.build_meta"
