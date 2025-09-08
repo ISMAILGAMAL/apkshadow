@@ -4,6 +4,8 @@ version = "0.1.0"
 description = "Android APK automation tool for bug bounty"
 authors = [{name = "ISMAILSHADOW"}]
 dependencies = ["tqdm"]
+license = "MIT"
+readme = "README.md"
 
 [project.scripts]
 apkshadow = "apkshadow.cli:main"
@@ -11,3 +13,6 @@ apkshadow = "apkshadow.cli:main"
 [build-system]
 requires = ["setuptools >= 77.0.3"]
 build-backend = "setuptools.build_meta"
+
+[project.urls]
+Homepage = "https://github.com/ISMAILGAMAL/apkshadow"
