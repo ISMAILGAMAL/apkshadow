@@ -25,11 +25,10 @@ def validateRegex(patterns):
 
 
 def getPackagesFromDevice(pattern_source, device, regex_mode):
-    pkgs = []
     patterns = loadPatterns(pattern_source)
 
     if regex_mode:
-        validateRegex(patterns)
+        patterns = validateRegex(patterns)
 
     try:
         args = ["shell", "pm", "list", "packages", "-f"]
@@ -38,16 +37,38 @@ def getPackagesFromDevice(pattern_source, device, regex_mode):
         e.printHelperMessage()
         exit(e.returncode)
 
+    pkgs = []
     for package in result.stdout.splitlines():
         match = re.match(r"package:(.*\.apk)=(.*)", package)
         apk_path = match.group(1)  # type: ignore
         package_name = match.group(2)  # type: ignore
+        pkgs.append([apk_path, package_name])
 
+    return filterPackageNames(patterns, pkgs, regex_mode)
+
+
+def getFilteredDirectories(pattern_source, parent_dir, regex_mode):
+    patterns = loadPatterns(pattern_source)
+
+    if regex_mode:
+        patterns = validateRegex(patterns)
+
+    pkgs = []
+    for pkg_name in os.listdir(parent_dir):
+        pkg_path = os.path.join(parent_dir, pkg_name)
+        if os.path.isdir(pkg_path):
+            pkgs.append([pkg_path, pkg_name])            
+    
+    return filterPackageNames(patterns, pkgs, regex_mode)
+
+
+def filterPackageNames(patterns, packages, regex_mode):
+    filtered = []
+    for path, pkg_name in packages:
         if not patterns:
-            pkgs.append([apk_path, package_name])
-        elif regex_mode and any(re.search(p, package_name) for p in patterns):
-            pkgs.append([apk_path, package_name])
-        elif not regex_mode and package_name in patterns:
-            pkgs.append([apk_path, package_name])
-
-    return pkgs
+            filtered.append([path, pkg_name])
+        elif regex_mode and any(re.search(p, pkg_name) for p in patterns):
+            filtered.append([path, pkg_name])
+        elif not regex_mode and pkg_name in patterns:
+            filtered.append([path, pkg_name])
+    return filtered
