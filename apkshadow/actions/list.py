@@ -6,7 +6,7 @@ def handleListAction(pattern_source, device, regex_mode, outputFilePath):
     pkgs = filters.getPackagesFromDevice(pattern_source, device, regex_mode)
 
     if not pkgs:
-        print(f"{utils.WARNING}[-] No packages match the filters.")
+        print(f"{utils.WARNING}[-] No packages match the filters.{utils.RESET}")
         return
     
     if outputFilePath:

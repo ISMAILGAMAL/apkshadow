@@ -21,11 +21,7 @@ def setVerbose(flag):
 def debug(msg):
     if VERBOSE:
         tqdm.write(f"{DEBUG}[DEBUG]{RESET} - {msg}")
-
-
-def isFilePath(value: str) -> bool:
-    return os.path.isfile(value)
-
+        
 
 def dirExistsAndNotEmpty(path):
     return os.path.isdir(path) and bool(os.listdir(path))

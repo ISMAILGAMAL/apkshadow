@@ -2,6 +2,7 @@ import argparse
 from apkshadow.actions import list as list_action
 from apkshadow.actions import pull as pull_action
 from apkshadow.actions import decompile as decompile_action
+from apkshadow.actions import analyze as analyze_action
 import apkshadow.utils as utils
 
 def initListParser(subparsers):
@@ -50,7 +51,7 @@ def initDecompileParser(subparsers):
         "-s",
         "--source",
         default=None,
-        help="Directory containing APKs to decompile (skips pulling from device if provided)"
+        help="Directory containing APKs to decompile (Pulls from adb connected device if not provided)"
     )
 
     decompile_parser.add_argument(
@@ -76,6 +77,28 @@ def initDecompileParser(subparsers):
         help="Tool to use for decompilation (default: 'apktool')"
     )
 
+def initAnalyzeParser(subparsers):
+    analyze_parser = subparsers.add_parser(
+        "analyze", help="analyze AndroidManifests to find attack surface. (eg.. exported=\"true\")"
+    )
+
+    analyze_parser.add_argument(
+        "-s",
+        "--source",
+        default=None,
+        help="Directory containing decompiled APKs with their AndroidManifests."
+    )
+
+    group = analyze_parser.add_mutually_exclusive_group()
+    group.add_argument(
+        "-f", "--filter",
+        help="Package id or path to file containing package ids"
+    )
+    group.add_argument(
+        "-r", "--regex",
+        help="Regex or path to file containing regexes to match package ids"
+    )
+
 
 def main():
     parser = argparse.ArgumentParser(description="Android APK automation tool")
@@ -95,6 +118,7 @@ def main():
     initListParser(subparsers)
     initPullParser(subparsers)
     initDecompileParser(subparsers)
+    initAnalyzeParser(subparsers)
 
     args = parser.parse_args()
 
@@ -110,3 +134,5 @@ def main():
         )
     elif args.action == "decompile":
         decompile_action.handleDecompileAction(pattern_source, args.device, regex_mode, args.source, args.output, args.mode)
+    elif args.action == "analyze":
+        analyze_action.handleAnalyzeAction(pattern_source, regex_mode, args.source)
