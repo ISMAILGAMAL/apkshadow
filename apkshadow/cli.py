@@ -89,6 +89,13 @@ def initAnalyzeParser(subparsers):
         help="Directory containing decompiled APKs with their AndroidManifests."
     )
 
+    analyze_parser.add_argument(
+        "-o",
+        "--output",
+        default="./",
+        help="Directory where AnalyzeResult.xml will be saved"
+    )
+
     group = analyze_parser.add_mutually_exclusive_group()
     group.add_argument(
         "-f", "--filter",
@@ -135,4 +142,4 @@ def main():
     elif args.action == "decompile":
         decompile_action.handleDecompileAction(pattern_source, args.device, regex_mode, args.source, args.output, args.mode)
     elif args.action == "analyze":
-        analyze_action.handleAnalyzeAction(pattern_source, regex_mode, args.source)
+        analyze_action.handleAnalyzeAction(pattern_source, regex_mode, args.source, args.output)
