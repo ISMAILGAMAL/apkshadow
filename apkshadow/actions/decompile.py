@@ -45,6 +45,12 @@ def decompileApks(pattern_source, source_dir, output_dir, decompile_mode, regex_
         )
         exit(1)
 
+    if not utils.dirExistsAndNotEmpty(output_dir):
+        print(
+            f"{utils.ERROR}[X] Output Directory: {output_dir} doesn't exist or is empty.{utils.RESET}"
+        )
+        exit(1)
+
     output_dir = os.path.normpath(os.path.abspath(output_dir))
     os.makedirs(output_dir, exist_ok=True)
 
