@@ -1,7 +1,7 @@
 import os
 from xml.dom import minidom
 from tqdm import tqdm
-
+import json
 
 # Status colors
 INFO = "\033[96m"        # Cyan for general info
@@ -32,7 +32,12 @@ def formatXmlString(rough_string):
     reparsed_xml = minidom.parseString(rough_string)
     pretty_xml = reparsed_xml.toprettyxml(indent="  ")
     
-    # # Clean up unwanted newlines from minidom
     formatted_xml_lines = pretty_xml.splitlines()
     clean_lines = [line for line in formatted_xml_lines if line.strip()]
     return "\n".join(clean_lines)
+
+
+def loadJsonFile(path):
+    with open(path, 'r') as file:
+        return json.load(file)
+    

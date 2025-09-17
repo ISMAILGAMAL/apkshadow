@@ -1,10 +1,8 @@
-import os
+from apkshadow.analysis.collector import analyzePackages
+from apkshadow.analysis.renderer import *
 from xml.etree import ElementTree as ET
-import apkshadow.utils as utils
 import apkshadow.filters as filters
-from xml.etree.ElementTree import tostring, Element
-import xml.dom.minidom as minidom
-import re
+import apkshadow.utils as utils
 
 def printCorrectLayoutMessage(source_dir):
     print(
@@ -18,30 +16,7 @@ source_dir ({source_dir})/
     )
 
 
-def colorize_element(element):
-    raw_xml = tostring(element, encoding="unicode")
-
-    # Color tag names
-    raw_xml = re.sub(
-        r"(<\/?)([\w-]+)([^>]*)(\/?>)",
-        rf"{utils.ERROR}\1{utils.WARNING}\2{utils.RESET}\3{utils.ERROR}\4{utils.RESET}",
-        raw_xml,
-        flags=re.DOTALL | re.MULTILINE,
-    )
-
-    # Color attribute names
-    raw_xml = re.sub(
-        r"(\s)(\w+:?\w*)(=)", rf"\1{utils.SUCCESS}\2{utils.RESET}\3", raw_xml
-    )
-
-    # Color attribute values
-    raw_xml = re.sub(r"(\"[^\"]*\")", rf"{utils.INFO}\1{utils.RESET}", raw_xml)
-
-    return raw_xml
-
-
 def handleAnalyzeAction(pattern_source, regex_mode, source_dir, output_dir):
-    android_namespace = "{http://schemas.android.com/apk/res/android}"
     pkg_dirs = filters.getFilteredDirectories(pattern_source, source_dir, regex_mode)
 
     if not pkg_dirs:
@@ -50,77 +25,12 @@ def handleAnalyzeAction(pattern_source, regex_mode, source_dir, output_dir):
 
     print(f"{utils.SUCCESS}[+] Found {len(pkg_dirs)} package directories{utils.RESET}")
 
-    if output_dir:
-        # Root element for the AnalyzeResult.xml
-        apps_root = Element("apps")
+    findings = analyzePackages(pkg_dirs)
 
-    for pkg_path, pkg_name in pkg_dirs:
-        manifest_path = os.path.join(pkg_path, "AndroidManifest.xml")
-        if not os.path.isfile(manifest_path):
-            print(
-                f"{utils.WARNING}[!] {pkg_name} has no manifest at {manifest_path}{utils.RESET}"
-            )
-            continue
+    if not findings:
+        print(f"{utils.ERROR}Couldn't find any exported components.")
 
-        try:
-            root = ET.parse(manifest_path).getroot()
-            application = root.find("application")
-            if application is None:
-                continue
-
-            pkg_declared = root.attrib.get("package", pkg_name)
-            print(f"\n{utils.HIGHLIGHT}[*] Package: {pkg_declared}{utils.RESET}")
-
-            if output_dir:
-                app_node = Element("app", {"name": pkg_declared})  # type: ignore
-
-            for element in application:
-                tag = element.tag.split("}")[-1]
-                if tag not in ["activity", "service", "receiver", "provider"]:
-                    continue
-
-                name = element.attrib.get(f"{android_namespace}name")
-                exported = element.attrib.get(f"{android_namespace}exported", "false")
-                perm = element.attrib.get(f"{android_namespace}permission")
-                rperm = element.attrib.get(f"{android_namespace}readPermission")
-                wperm = element.attrib.get(f"{android_namespace}writePermission")
-
-                if not name:
-                    continue
-
-                # Decide summary
-                if exported == "true" and not (perm or rperm or wperm):
-                    print(
-                        f"{utils.WARNING}[!] Exported {tag} without permission: {utils.INFO}{name}{utils.RESET}"
-                    )
-                elif exported == "true":
-                    print(
-                        f"{utils.SUCCESS}[+] Exported {tag} with permission {perm or rperm or wperm}: {utils.INFO}{name}{utils.RESET}"
-                    )
-                else:
-                    continue
-
-                if output_dir:
-                    app_node.append(element)
-
-                if utils.VERBOSE:
-                    colorized_xml = colorize_element(element)
-                    print(
-                        f"{utils.INFO}[VERBOSE] Full element:\n{colorized_xml}{utils.RESET}"
-                    )
-            
-            if output_dir:
-                apps_root.append(app_node)
-
-        except Exception as e:
-            print(f"{utils.ERROR}[X] Failed to parse {manifest_path}: {e}{utils.RESET}")
+    render_terminal(findings, utils.VERBOSE)
 
     if output_dir:
-        os.makedirs(output_dir, exist_ok=True)
-        out_path = os.path.join(output_dir, "AnalyzeResult.xml")
-                
-        formatted_xml = utils.formatXmlString(ET.tostring(apps_root, 'utf-8'))        
-        with open(out_path, "w", encoding="utf-8") as f:
-            f.write(formatted_xml)
-
-        print(f"{utils.SUCCESS}[+] Results written to {out_path}{utils.RESET}")
+        render_xml(findings, utils.VERBOSE)
