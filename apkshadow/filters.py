@@ -1,7 +1,7 @@
+import apkshadow.globals as GLOBALS
+from apkshadow import cmdrunner
 import os
 import re
-import apkshadow.utils as utils
-from apkshadow import cmdrunner
 
 
 def loadPatterns(pattern_source):
@@ -19,7 +19,7 @@ def validateRegex(patterns):
         return [re.compile(p) for p in patterns]
     except re.error as e:
         print(
-            f'{utils.WARNING}[X] Invalid regex pattern: {utils.ERROR}"{e.pattern}" {utils.INFO}\nReason: {utils.ERROR}{e}'
+            f'{GLOBALS.WARNING}[X] Invalid regex pattern: {GLOBALS.ERROR}"{e.pattern}" {GLOBALS.INFO}\nReason: {GLOBALS.ERROR}{e}'
         )
         exit(1)
 

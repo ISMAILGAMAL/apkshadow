@@ -1,27 +1,18 @@
-import os
+import apkshadow.globals as GLOBALS
 from xml.dom import minidom
 from tqdm import tqdm
 import json
+import glob
+import os
 
-# Status colors
-INFO = "\033[96m"        # Cyan for general info
-SUCCESS = "\033[92m"     # Green for success
-WARNING = "\033[93m"     # Yellow for warnings
-ERROR = "\033[91m"       # Red for errors
-DEBUG = "\033[95m"       # Magenta for debug messages
-HIGHLIGHT = "\033[94m"   # Blue for file paths or important text
-RESET = "\033[0m"
-
-VERBOSE = False
 
 def setVerbose(flag):
-    global VERBOSE
-    VERBOSE = flag
+    GLOBALS.VERBOSE = flag
 
 
 def debug(msg):
-    if VERBOSE:
-        tqdm.write(f"{DEBUG}[DEBUG]{RESET} - {msg}")
+    if GLOBALS.VERBOSE:
+        tqdm.write(f"{GLOBALS.DEBUG}[DEBUG]{GLOBALS.RESET} - {msg}")
         
 
 def dirExistsAndNotEmpty(path):
@@ -41,3 +32,7 @@ def loadJsonFile(path):
     with open(path, 'r') as file:
         return json.load(file)
     
+
+def find_manifest(pkg_path):
+    matches = glob.glob(os.path.join(pkg_path, "**", "AndroidManifest.xml"), recursive=True)
+    return matches[0] if matches else None

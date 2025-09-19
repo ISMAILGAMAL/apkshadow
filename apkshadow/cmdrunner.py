@@ -1,12 +1,13 @@
+import apkshadow.globals as GLOBALS
+import apkshadow.utils as utils
 import subprocess
 import shlex
-import apkshadow.utils as utils
 
 
 class CmdError(Exception):
     def __init__(self, cmd, result):
         super().__init__(
-            f"{utils.ERROR}Command failed: {cmd} (rc={result.returncode})\nError: {result.stderr}"
+            f"{GLOBALS.ERROR}Command failed: {cmd} (rc={result.returncode})\nError: {result.stderr}"
         )
         self.cmd = cmd
         self.returncode = result.returncode
@@ -41,22 +42,22 @@ class AdbError(CmdError):
             error = f"Unknown error:\n{self.stderr.strip()}"
 
         if printError:
-            print(utils.ERROR + f"[X] {error}" + utils.RESET)
+            print(GLOBALS.ERROR + f"[X] {error}" + GLOBALS.RESET)
         return error
 
 
-def runCommand(cmd, type, check):
+def runCommand(cmd, type, check, binary=False):
     """
     Central runner for all commands.
     - check=False lets callers accept non-zero exits (jadx)
     """
     cmd_display = " ".join(shlex.quote(c) for c in cmd)
-    utils.debug(f"{utils.INFO}[Running Command]: {cmd_display}")
+    utils.debug(f"{GLOBALS.INFO}[Running Command]: {cmd_display}")
 
     result = subprocess.run(
         list(cmd),
         capture_output=True,
-        text=True,
+        text=not binary,
     )
 
     if check and result.returncode != 0:
@@ -67,24 +68,25 @@ def runCommand(cmd, type, check):
 
     if result.returncode != 0:
         utils.debug(
-            f"{utils.WARNING} non-zero rc {result.returncode} stdout(len)={len(result.stdout)} stderr(len)={len(result.stderr)}"
+            f"{GLOBALS.WARNING} non-zero rc {result.returncode} stdout(len)={len(result.stdout)} stderr(len)={len(result.stderr)}"
         )
 
     return result
 
 
-def runAdb(args, device):
+def runAdb(args, device, binary=False):
     cmd = ["adb"]
     if device:
         cmd += ["-s", device]
     cmd += list(args)
-    return runCommand(cmd, type="adb", check=True)
+    return runCommand(cmd, type="adb", check=True, binary=binary)
 
 
 def runJadx(apk_path, out_dir, no_res=False):
     cmd = ["jadx"]
     if no_res:
         cmd.append("--no-res")
+    
     cmd += ["-d", out_dir, apk_path]
 
     # allow_nonzero True -> accept nonzero exit codes (jadx spits warnings/errors but often partial output exists)
@@ -92,5 +94,6 @@ def runJadx(apk_path, out_dir, no_res=False):
 
 
 def runApktool(apk_path, out_dir):
-    args = ["apktool", "d", apk_path, "-o", out_dir, "-f"]
+    # TODO add ability to choose to include or skip smali
+    args = ["apktool", "d", apk_path, "-o", out_dir, "-f", "-s"]
     return runCommand(args, type="apktool", check=True)

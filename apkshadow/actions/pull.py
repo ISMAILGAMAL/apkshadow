@@ -1,8 +1,10 @@
-import os
-from tqdm import tqdm
+import apkshadow.globals as GLOBALS
 import apkshadow.filters as filters
 from apkshadow import cmdrunner
 import apkshadow.utils as utils
+from tqdm import tqdm
+import shutil
+import os
 
 
 def handlePullAction(pattern_source, device, regex_mode, outputDir="./"):
@@ -22,9 +24,11 @@ def handlePullAction(pattern_source, device, regex_mode, outputDir="./"):
             cmdrunner.runAdb(args, device)
 
             utils.debug(
-                f"{utils.SUCCESS}[+] Pulled {package_name} → {utils.INFO}{out_path}{utils.RESET}"
+                f"{GLOBALS.SUCCESS}[+] Pulled {package_name} → {GLOBALS.INFO}{out_path}{GLOBALS.RESET}"
             )
         except cmdrunner.AdbError as e:
             tqdm.write(
-                f"{utils.WARNING}[X] Failed to pull {package_name}: {utils.ERROR}{e.printHelperMessage(printError=False)}{utils.RESET}"
+                f"{GLOBALS.WARNING}[X] Failed to pull {package_name}: {GLOBALS.ERROR}{e.printHelperMessage(printError=False)}{GLOBALS.RESET}"
             )
+
+            shutil.rmtree(packageDir)

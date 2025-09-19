@@ -1,9 +1,9 @@
-import argparse
-from apkshadow.actions import list as list_action
-from apkshadow.actions import pull as pull_action
 from apkshadow.actions import decompile as decompile_action
 from apkshadow.actions import analyze as analyze_action
+from apkshadow.actions import list as list_action
+from apkshadow.actions import pull as pull_action
 import apkshadow.utils as utils
+import argparse
 
 
 def initListParser(subparsers):
@@ -161,5 +161,5 @@ def main():
         )
     elif args.action == "analyze":
         analyze_action.handleAnalyzeAction(
-            pattern_source, regex_mode, args.source, args.output
+            pattern_source, args.device, regex_mode, args.source, args.output
         )

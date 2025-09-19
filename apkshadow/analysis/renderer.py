@@ -1,9 +1,8 @@
+from xml.etree.ElementTree import Element, SubElement, tostring
+import apkshadow.globals as GLOBALS
+import xml.dom.minidom as minidom
 import os
 import re
-import xml.dom.minidom as minidom
-from xml.etree.ElementTree import Element, SubElement, tostring
-
-import apkshadow.utils as utils
 
 
 def colorize_element(element):
@@ -12,16 +11,16 @@ def colorize_element(element):
     # Color tag names
     raw_xml = re.sub(
         r"(<\/?)([\w-]+)([^>]*)(\/?>)",
-        rf"{utils.ERROR}\1{utils.WARNING}\2{utils.RESET}\3{utils.ERROR}\4{utils.RESET}",
+        rf"{GLOBALS.ERROR}\1{GLOBALS.WARNING}\2{GLOBALS.RESET}\3{GLOBALS.ERROR}\4{GLOBALS.RESET}",
         raw_xml,
         flags=re.DOTALL | re.MULTILINE,
     )
 
     # Color attribute names
-    raw_xml = re.sub(r"(\s)(\w+:?\w*)(=)", rf"\1{utils.SUCCESS}\2{utils.RESET}\3", raw_xml)
+    raw_xml = re.sub(r"(\s)(\w+:?\w*)(=)", rf"\1{GLOBALS.SUCCESS}\2{GLOBALS.RESET}\3", raw_xml)
 
     # Color attribute values
-    raw_xml = re.sub(r"(\"[^\"]*\")", rf"{utils.INFO}\1{utils.RESET}", raw_xml)
+    raw_xml = re.sub(r"(\"[^\"]*\")", rf"{GLOBALS.INFO}\1{GLOBALS.RESET}", raw_xml)
 
     return raw_xml
 
@@ -30,17 +29,17 @@ def render_terminal(findings, verbose=False):
     """Render findings in the terminal with colors."""
     for f in findings:
         if f.risk_tier in ["high", "medium-high"]:
-            color = utils.WARNING if f.risk_tier == "high" else utils.SUCCESS
+            color = GLOBALS.WARNING if f.risk_tier == "high" else GLOBALS.SUCCESS
         elif f.risk_tier == "medium":
-            color = utils.HIGHLIGHT
+            color = GLOBALS.WARNING
         else:
-            color = utils.INFO
+            color = GLOBALS.INFO
 
-        print(f"{color}{f.summary}{utils.RESET}")
+        print(f"{color}{f.summary}{GLOBALS.RESET}")
 
         if verbose and f.element is not None:
             colorized_xml = colorize_element(f.element)
-            print(f"{utils.INFO}[VERBOSE] Full element:\n{colorized_xml}{utils.RESET}")
+            print(f"{GLOBALS.INFO}[VERBOSE] Full element:\n{colorized_xml}{GLOBALS.RESET}")
 
 
 def render_xml(findings, output_dir):
@@ -79,7 +78,7 @@ def render_xml(findings, output_dir):
     with open(out_path, "w", encoding="utf-8") as f:
         f.write(pretty_xml)
 
-    print(f"{utils.SUCCESS}[+] Results written to {out_path}{utils.RESET}")
+    print(f"{GLOBALS.SUCCESS}[+] Results written to {out_path}{GLOBALS.RESET}")
 
 
 def render_html(findings, output_dir):
@@ -92,4 +91,4 @@ def render_html(findings, output_dir):
     with open(out_path, "w", encoding="utf-8") as f:
         f.write("<html><body><h1>Analyze Results</h1></body></html>")
 
-    print(f"{utils.SUCCESS}[+] HTML results written to {out_path}{utils.RESET}")
+    print(f"{GLOBALS.SUCCESS}[+] HTML results written to {out_path}{GLOBALS.RESET}")

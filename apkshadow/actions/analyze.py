@@ -1,36 +1,36 @@
 from apkshadow.analysis.collector import analyzePackages
 from apkshadow.analysis.renderer import *
 from xml.etree import ElementTree as ET
+import apkshadow.globals as GLOBALS
 import apkshadow.filters as filters
-import apkshadow.utils as utils
 
 def printCorrectLayoutMessage(source_dir):
     print(
-        f"""{utils.ERROR}[X] No decompiled package directories found in {source_dir}
-{utils.WARNING}Expected layout:
+        f"""{GLOBALS.ERROR}[X] No decompiled package directories found in {source_dir}
+{GLOBALS.WARNING}Expected layout:
 source_dir ({source_dir})/
 ├── com.example1.app/
 │   └── AndroidManifest.xml
 └── com.example2.io/
-    └── AndroidManifest.xml{utils.RESET}"""
+    └── AndroidManifest.xml{GLOBALS.RESET}"""
     )
 
 
-def handleAnalyzeAction(pattern_source, regex_mode, source_dir, output_dir):
+def handleAnalyzeAction(pattern_source, device, regex_mode, source_dir, output_dir):
     pkg_dirs = filters.getFilteredDirectories(pattern_source, source_dir, regex_mode)
 
     if not pkg_dirs:
         printCorrectLayoutMessage(source_dir)
         exit(1)
 
-    print(f"{utils.SUCCESS}[+] Found {len(pkg_dirs)} package directories{utils.RESET}")
+    print(f"{GLOBALS.SUCCESS}[+] Found {len(pkg_dirs)} package directories{GLOBALS.RESET}")
 
-    findings = analyzePackages(pkg_dirs)
+    findings = analyzePackages(pkg_dirs, device)
 
     if not findings:
-        print(f"{utils.ERROR}Couldn't find any exported components.")
+        print(f"{GLOBALS.ERROR}Couldn't find any exported components.")
 
-    render_terminal(findings, utils.VERBOSE)
+    render_terminal(findings, GLOBALS.VERBOSE)
 
     if output_dir:
-        render_xml(findings, utils.VERBOSE)
+        render_xml(findings, GLOBALS.VERBOSE)
