@@ -7,8 +7,8 @@ import shutil
 import os
 
 
-def handlePullAction(pattern_source, device, regex_mode, outputDir="./"):
-    pkgs = filters.getPackagesFromDevice(pattern_source, device, regex_mode)
+def handlePullAction(pattern_source, regex_mode, outputDir="./"):
+    pkgs = filters.getPackagesFromDevice(pattern_source, regex_mode)
 
     outputDir = os.path.normpath(os.path.abspath(outputDir))
     os.makedirs(outputDir, exist_ok=True)
@@ -21,7 +21,7 @@ def handlePullAction(pattern_source, device, regex_mode, outputDir="./"):
             os.makedirs(packageDir, exist_ok=True)
   
             args = ["pull", apk_path, out_path]
-            cmdrunner.runAdb(args, device)
+            cmdrunner.runAdb(args)
 
             utils.debug(
                 f"{GLOBALS.SUCCESS}[+] Pulled {package_name} → {GLOBALS.INFO}{out_path}{GLOBALS.RESET}"

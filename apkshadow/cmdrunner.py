@@ -46,6 +46,24 @@ class AdbError(CmdError):
         return error
 
 
+class ApktoolError(CmdError):
+    def __init__(self, cmd, result):
+        super().__init__(cmd, result)
+
+    def printHelperMessage(self, printError=True):
+        err = (self.stderr or "").lower()
+
+        if "multiple resources" in err:
+            error = "Duplicate resources detected. Apktool cannot decode this APK's resources."
+        elif "brut.androlib.err" in err:
+            error = "Apktool internal error while decoding resources."
+        else:
+            error = f"Unknown apktool error:\n{self.stderr.strip()}"
+
+        if printError:
+            print(GLOBALS.ERROR + f"[X] {error}" + GLOBALS.RESET)
+        return error
+
 def runCommand(cmd, type, check, binary=False):
     """
     Central runner for all commands.
@@ -63,6 +81,8 @@ def runCommand(cmd, type, check, binary=False):
     if check and result.returncode != 0:
         if type == "adb":
             raise AdbError(cmd_display, result)
+        elif type == "apktool":
+            raise ApktoolError(cmd_display, result)
         else:
             raise CmdError(cmd_display, result)
 
@@ -74,10 +94,10 @@ def runCommand(cmd, type, check, binary=False):
     return result
 
 
-def runAdb(args, device, binary=False):
+def runAdb(args, binary=False):
     cmd = ["adb"]
-    if device:
-        cmd += ["-s", device]
+    if GLOBALS.DEVICE:
+        cmd += ["-s", GLOBALS.DEVICE]
     cmd += list(args)
     return runCommand(cmd, type="adb", check=True, binary=binary)
 

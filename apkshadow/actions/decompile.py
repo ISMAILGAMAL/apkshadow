@@ -1,7 +1,8 @@
 from apkshadow.actions import pull as pull_action
+from apkshadow.parser import Parser
 import apkshadow.filters as filters
 import apkshadow.globals as GLOBALS
-from apkshadow import cache, cmdrunner
+from apkshadow import cmdrunner
 import apkshadow.utils as utils
 from tqdm import tqdm
 import tempfile
@@ -21,21 +22,21 @@ source_dir ({source_dir})/
 
 
 def handleDecompileAction(
-    pattern_source, device, regex_mode, source_dir, outputDir, decompileMode
+    pattern_source, regex_mode, source_dir, outputDir, decompileMode
 ):
     if not source_dir:
         with tempfile.TemporaryDirectory(prefix="apkshadow_") as temp_dir:
             utils.debug(
                 f"{GLOBALS.HIGHLIGHT}[+] No source_dir provided. Pulling APKs to temporary directory: {temp_dir}"
             )
-            pull_action.handlePullAction(pattern_source, device, regex_mode, temp_dir)
+            pull_action.handlePullAction(pattern_source, regex_mode, temp_dir)
             source_dir = temp_dir
             decompileApks(
-                pattern_source, source_dir, outputDir, decompileMode, regex_mode, device
+                pattern_source, source_dir, outputDir, decompileMode, regex_mode
             )
     else:
         decompileApks(
-            pattern_source, source_dir, outputDir, decompileMode, regex_mode, device
+            pattern_source, source_dir, outputDir, decompileMode, regex_mode
         )
 
 
@@ -45,7 +46,6 @@ def decompileApks(
     output_dir,
     decompile_mode,
     regex_mode,
-    device,
 ):
     source_dir = os.path.normpath(os.path.abspath(source_dir))
     if not utils.dirExistsAndNotEmpty(source_dir):
@@ -88,17 +88,25 @@ def decompileApks(
         for apk in apk_files:
             apk_path = os.path.join(pkg_path, apk)
             try:
-                if decompile_mode == "jadx":
+                parser = Parser()
+                cached = parser.checkCached(apk_path)
 
+                if GLOBALS.VERBOSE:
+                    utils.debug(f"{GLOBALS.INFO}Apk in: {apk_path} was parsed and cached before, skipping decompilation")
+                    
+                if cached:
+                    continue
+
+                if decompile_mode == "jadx":
                     cmdrunner.runJadx(apk_path, decompiled_dir)
                 elif decompile_mode == "apktool":
                     cmdrunner.runApktool(apk_path, decompiled_dir)
 
-                # TODO add caching
-                # apk_hash = cache.getApkHash(apk_path, device)
-
-                # manifest_path = utils.find_manifest(decompiled_dir)
+                manifest_path = utils.find_manifest(decompiled_dir)
+                parser.parseManifest(manifest_path)
+                parser.cacheManifest(apk_path)
 
             except cmdrunner.CmdError as e:
                 e.printHelperMessage(True)
-                exit(e.returncode)
+
+

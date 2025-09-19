@@ -9,6 +9,8 @@ import os
 def setVerbose(flag):
     GLOBALS.VERBOSE = flag
 
+def setDevice(device):
+    GLOBALS.DEVICE = device
 
 def debug(msg):
     if GLOBALS.VERBOSE:
@@ -36,3 +38,7 @@ def loadJsonFile(path):
 def find_manifest(pkg_path):
     matches = glob.glob(os.path.join(pkg_path, "**", "AndroidManifest.xml"), recursive=True)
     return matches[0] if matches else None
+
+
+def safeIsFile(path):
+    return path and os.path.isfile(path)

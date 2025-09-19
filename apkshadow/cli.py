@@ -136,24 +136,23 @@ def main():
     args = parser.parse_args()
 
     utils.setVerbose(args.verbose)
+    utils.setDevice(args.device)
     regex_mode = bool(args.regex)
     pattern_source = args.filter or args.regex
 
     if args.action == "list":
         list_action.handleListAction(
-            pattern_source, args.device, regex_mode, args.output
+            pattern_source, regex_mode, args.output
         )
     elif args.action == "pull":
         pull_action.handlePullAction(
             pattern_source,
-            args.device,
             regex_mode,
             args.output,
         )
     elif args.action == "decompile":
         decompile_action.handleDecompileAction(
             pattern_source,
-            args.device,
             regex_mode,
             args.source,
             args.output,
@@ -161,5 +160,5 @@ def main():
         )
     elif args.action == "analyze":
         analyze_action.handleAnalyzeAction(
-            pattern_source, args.device, regex_mode, args.source, args.output
+            pattern_source, regex_mode, args.source, args.output
         )

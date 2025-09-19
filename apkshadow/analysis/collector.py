@@ -1,91 +1,11 @@
 from apkshadow.actions import decompile as decompile_action
-from apkshadow.analysis.component import Component
 from apkshadow.analysis.finding import Finding
-from xml.etree import ElementTree as ET
+from apkshadow.parser import Parser
 import apkshadow.globals as GLOBALS
 import apkshadow.filters as filters
 import apkshadow.utils as utils
+from tqdm import tqdm
 import tempfile
-import os
-
-
-def parse_manifest(manifest_path):
-    """Parse an AndroidManifest.xml file.
-
-    Args:
-        manifest_path (str): Path to the manifest file.
-
-    Returns:
-        dict: {
-            "package": (str) package name,
-            "components": (list[Component]) list of components
-        }
-        or None if parsing fails.
-    """
-    if not os.path.isfile(manifest_path):
-        return None
-
-    try:
-        root = ET.parse(manifest_path).getroot()
-        pkg_declared = root.attrib.get("package")
-        application = root.find("application")
-        components = []
-
-        # First, capture manifest-level permissions (<permission> often appears here)
-        for element in root:
-            tag = element.tag.split("}")[-1]
-            if tag != "permission":
-                continue
-            name = element.attrib.get(f"{GLOBALS.ANDROID_NS}name")
-            if not name:
-                continue
-            components.append(
-                Component(
-                    pkg=pkg_declared,
-                    tag=tag,
-                    name=name,
-                    exported=False,
-                    permission=None,
-                    element=element,
-                )
-            )
-
-        if application is None:
-            return None
-
-        # Then application-level components
-        for element in application:
-            tag = element.tag.split("}")[-1]
-            if tag not in ["activity", "service", "receiver", "provider"]:
-                continue
-
-            name = element.attrib.get(f"{GLOBALS.ANDROID_NS}name")
-            if not name:
-                continue
-
-            exported = element.attrib.get(f"{GLOBALS.ANDROID_NS}exported", "false")
-            perm = element.attrib.get(f"{GLOBALS.ANDROID_NS}permission", "none")
-
-            components.append(
-                Component(
-                    pkg=pkg_declared,
-                    tag=tag,
-                    name=name,
-                    exported=exported,
-                    permission=perm,
-                    element=element,
-                )
-            )
-        return {"package": pkg_declared, "components": components}
-
-    except ET.ParseError as e:
-        print(
-            f"{GLOBALS.ERROR}[X] Malformed manifest in {manifest_path}: {e}{GLOBALS.RESET}"
-        )
-    except Exception as e:
-        print(f"{GLOBALS.ERROR}[X] Failed to read {manifest_path}: {e}{GLOBALS.RESET}")
-    return None
-
 
 def filterNonClaimedPermissions(source_directory, findings):
     """Filter which custom permissions are not declared in any manifest in source_directory.
@@ -101,11 +21,12 @@ def filterNonClaimedPermissions(source_directory, findings):
     declared_perms = set()
 
     for pkg_path, _ in pkg_dirs:
-        manifest_path = os.path.join(pkg_path, "AndroidManifest.xml")
-        if not os.path.isfile(manifest_path):
+        manifest_path = utils.find_manifest(pkg_path)
+        if not utils.safeIsFile(manifest_path): # type: ignore
             continue
 
-        parsed = parse_manifest(manifest_path)
+        parser = Parser()
+        parsed = parser.parseManifest(manifest_path)
         if not parsed:
             continue
 
@@ -117,7 +38,7 @@ def filterNonClaimedPermissions(source_directory, findings):
 
     nonClaimed = []
     for finding in findings:
-        if finding.permission not in declared_perms:
+        if finding.component.permission not in declared_perms:
             finding.perm_type = "custom-unclaimed"
             finding.risk_tier = "critical"
             finding.summary = (
@@ -130,7 +51,7 @@ def filterNonClaimedPermissions(source_directory, findings):
     return nonClaimed
 
 
-def analyzePackages(pkg_dirs, device):
+def analyzePackages(pkg_dirs):
     """Analyze APK manifests for exported components and classify risks.
     Args:
         pkg_dirs (list[tuple[str, str]]): List of (path, pkg_name) tuples for APKs to analyze.
@@ -146,13 +67,14 @@ def analyzePackages(pkg_dirs, device):
     custom_perm_findings = []
 
     # First pass: analyze given packages
-    for pkg_path, _ in pkg_dirs:
+    for pkg_path, _ in tqdm(pkg_dirs, desc="Analyzing manifests", unit="apk"):
         manifest_path = utils.find_manifest(pkg_path)
 
-        if GLOBALS.VERBOSE:
+        if GLOBALS.VERBOSE and manifest_path:
             utils.debug(f"Found AndroidManifest.xml at {manifest_path}")
 
-        parsed = parse_manifest(manifest_path)
+        parser = Parser()
+        parsed = parser.parseManifest(manifest_path)
         if not parsed:
             continue
 
@@ -172,9 +94,21 @@ def analyzePackages(pkg_dirs, device):
         print(
             f"{GLOBALS.WARNING}[+] Custom permissions found, scanning other APKs...{GLOBALS.RESET}"
         )
+
+        # pattern = "^("
+        # packages = filters.getPackagesFromDevice(None, False)
+        # parser = Parser()
+        # for i, package in enumerate(packages):
+        #     apk_path, pkg_name = package
+        #     if not parser.checkCached(apk_path, True):
+        #         if i != 0:
+        #             pattern += "|"
+        #         pattern += pkg_name
+        # pattern += ")$"
+        # print(pattern)
         with tempfile.TemporaryDirectory(prefix="apkshadowDecompiled_") as temp_dir:
             decompile_action.handleDecompileAction(
-                None, device, False, None, temp_dir, "apktool"
+                None,  False, None, temp_dir, "apktool"
             )
 
             findings.extend(filterNonClaimedPermissions(temp_dir, custom_perm_findings))

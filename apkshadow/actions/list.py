@@ -3,8 +3,8 @@ import apkshadow.globals as GLOBALS
 import apkshadow.utils as utils
 import os
 
-def handleListAction(pattern_source, device, regex_mode, outputFilePath):
-    pkgs = filters.getPackagesFromDevice(pattern_source, device, regex_mode)
+def handleListAction(pattern_source, regex_mode, outputFilePath):
+    pkgs = filters.getPackagesFromDevice(pattern_source, regex_mode)
 
     if not pkgs:
         print(f"{GLOBALS.WARNING}[-] No packages match the filters.{GLOBALS.RESET}")

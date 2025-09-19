@@ -24,7 +24,7 @@ def validateRegex(patterns):
         exit(1)
 
 
-def getPackagesFromDevice(pattern_source, device, regex_mode):
+def getPackagesFromDevice(pattern_source, regex_mode):
     patterns = loadPatterns(pattern_source)
 
     if regex_mode:
@@ -32,7 +32,7 @@ def getPackagesFromDevice(pattern_source, device, regex_mode):
 
     try:
         args = ["shell", "pm", "list", "packages", "-f"]
-        result = cmdrunner.runAdb(args, device)
+        result = cmdrunner.runAdb(args)
     except cmdrunner.AdbError as e:
         e.printHelperMessage()
         exit(e.returncode)
@@ -52,6 +52,10 @@ def getFilteredDirectories(pattern_source, parent_dir, regex_mode):
 
     if regex_mode:
         patterns = validateRegex(patterns)
+
+    if not os.path.isdir(parent_dir):
+        print(f"{GLOBALS.ERROR}[X] Source is not a directory: {parent_dir}")
+        exit(1)
 
     pkgs = []
     for pkg_name in os.listdir(parent_dir):

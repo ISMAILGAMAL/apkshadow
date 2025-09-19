@@ -1,3 +1,5 @@
+from xml.etree import ElementTree as ET
+
 class Component:
     """Represents a declared Android component (activity, service, etc.).
 
@@ -10,7 +12,7 @@ class Component:
         element (xml.etree.ElementTree.Element): The raw XML element.
     """
 
-    def __init__(self, pkg, tag, name, exported, permission, element):
+    def __init__(self, pkg, tag, name, exported, permission):
         self.pkg = pkg
         self.tag = tag
         self.name = name
@@ -21,7 +23,6 @@ class Component:
             self.exported = exported
 
         self.permission = permission
-        self.element = element
 
     def isExported(self):
         return self.exported

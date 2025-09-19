@@ -60,3 +60,5 @@ RESET = "\033[0m"
 VERBOSE = False
 
 ANDROID_NS = "{http://schemas.android.com/apk/res/android}"
+
+DEVICE = None # Device id used for adb internally (Get with adb devices)

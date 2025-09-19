@@ -16,7 +16,7 @@ source_dir ({source_dir})/
     )
 
 
-def handleAnalyzeAction(pattern_source, device, regex_mode, source_dir, output_dir):
+def handleAnalyzeAction(pattern_source,  regex_mode, source_dir, output_dir):
     pkg_dirs = filters.getFilteredDirectories(pattern_source, source_dir, regex_mode)
 
     if not pkg_dirs:
@@ -25,10 +25,11 @@ def handleAnalyzeAction(pattern_source, device, regex_mode, source_dir, output_d
 
     print(f"{GLOBALS.SUCCESS}[+] Found {len(pkg_dirs)} package directories{GLOBALS.RESET}")
 
-    findings = analyzePackages(pkg_dirs, device)
+    findings = analyzePackages(pkg_dirs)
 
     if not findings:
-        print(f"{GLOBALS.ERROR}Couldn't find any exported components.")
+        print(f"{GLOBALS.ERROR}[X] Couldn't find any exported components.")
+        exit(1)
 
     render_terminal(findings, GLOBALS.VERBOSE)
 
