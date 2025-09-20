@@ -1,6 +1,5 @@
-from xml.etree.ElementTree import Element, SubElement, tostring
+from xml.etree.ElementTree import Element, ElementTree, SubElement, tostring
 import apkshadow.globals as GLOBALS
-import xml.dom.minidom as minidom
 import os
 import re
 
@@ -27,19 +26,24 @@ def colorize_element(element):
 
 def render_terminal(findings, verbose=False):
     """Render findings in the terminal with colors."""
-    for f in findings:
-        if f.risk_tier in ["high", "medium-high"]:
-            color = GLOBALS.WARNING if f.risk_tier == "high" else GLOBALS.SUCCESS
-        elif f.risk_tier == "medium":
-            color = GLOBALS.WARNING
-        else:
-            color = GLOBALS.INFO
+    for finding in findings:
+        color = _get_risk_color(finding.risk_tier)
+        print(f"{color}{finding.summary}{GLOBALS.RESET}")
 
-        print(f"{color}{f.summary}{GLOBALS.RESET}")
-
-        if verbose and f.element is not None:
-            colorized_xml = colorize_element(f.element)
+        if verbose and getattr(finding.component, "element", None) is not None:
+            colorized_xml = colorize_element(finding.component.element)
             print(f"{GLOBALS.INFO}[VERBOSE] Full element:\n{colorized_xml}{GLOBALS.RESET}")
+
+
+def _get_risk_color(risk_tier):
+    """Return the color associated with a given risk tier."""
+    if risk_tier == "high":
+        return GLOBALS.WARNING
+    if risk_tier == "medium-high":
+        return GLOBALS.SUCCESS
+    if risk_tier == "medium":
+        return GLOBALS.HIGHLIGHT
+    return GLOBALS.INFO
 
 
 def render_xml(findings, output_dir):
@@ -53,32 +57,35 @@ def render_xml(findings, output_dir):
     # Group findings by package
     pkgs = {}
     for f in findings:
-        pkgs.setdefault(f.pkg, []).append(f)
+        pkgs.setdefault(f.component.pkg, []).append(f)
 
     for pkg, pkg_findings in pkgs.items():
         app_node = SubElement(apps_root, "app", {"name": pkg})
 
         for f in pkg_findings:
-            attribs = {
-                "name": f.name,
-                "type": f.comp_type,
-                "exported": str(f.exported).lower(),
-                "permission": f.permission,
-                "permType": f.perm_type,
-                "riskTier": f.risk_tier,
-            }
-            SubElement(app_node, f.comp_type, attribs)
+            app_node.append(f.component.element)
 
-    # Pretty-print
-    rough_string = tostring(apps_root, encoding="utf-8")
-    reparsed = minidom.parseString(rough_string)
-    pretty_xml = reparsed.toprettyxml(indent="  ")
+
 
     out_path = os.path.join(output_dir, "AnalyzeResult.xml")
-    with open(out_path, "w", encoding="utf-8") as f:
-        f.write(pretty_xml)
+    formatXml(apps_root)
+    ElementTree(apps_root).write(out_path, encoding="utf-8", xml_declaration=True)
 
     print(f"{GLOBALS.SUCCESS}[+] Results written to {out_path}{GLOBALS.RESET}")
+
+
+def formatXml(elem, level=0):
+    i = "\n" + level * "  "
+    if len(elem):
+        if not elem.text or not elem.text.strip():
+            elem.text = i + "  "
+        for child in elem:
+            formatXml(child, level + 1)
+        if not elem.tail or not elem.tail.strip():
+            elem.tail = i
+    else:
+        if level and (not elem.tail or not elem.tail.strip()):
+            elem.tail = i
 
 
 def render_html(findings, output_dir):

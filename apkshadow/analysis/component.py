@@ -12,7 +12,7 @@ class Component:
         element (xml.etree.ElementTree.Element): The raw XML element.
     """
 
-    def __init__(self, pkg, tag, name, exported, permission):
+    def __init__(self, pkg, tag, name, exported, permission, element):
         self.pkg = pkg
         self.tag = tag
         self.name = name
@@ -23,15 +23,31 @@ class Component:
             self.exported = exported
 
         self.permission = permission
+        self.element = element
 
     def isExported(self):
         return self.exported
 
+    
     def to_dict(self):
         return {
             "pkg": self.pkg,
             "tag": self.tag,
             "name": self.name,
             "exported": self.exported,
-            "permission": self.permission,
+            "permission": self.permission or "none",
+            "element": ET.tostring(self.element, encoding="unicode"),
         }
+
+
+    @classmethod
+    def from_dict(cls, data):
+        element = ET.fromstring(data["element"]) if data.get("element") else None
+        return cls(
+            pkg=data["pkg"],
+            tag=data["tag"],
+            name=data["name"],
+            exported=data["exported"],
+            permission=data.get("permission"),
+            element=element
+        )

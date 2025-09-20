@@ -98,7 +98,7 @@ def initAnalyzeParser(subparsers):
     analyze_parser.add_argument(
         "-o",
         "--output",
-        default="./",
+        default=None,
         help="Directory where AnalyzeResult.xml will be saved",
     )
 

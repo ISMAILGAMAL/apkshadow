@@ -35,10 +35,18 @@ def loadJsonFile(path):
         return json.load(file)
     
 
-def find_manifest(pkg_path):
-    matches = glob.glob(os.path.join(pkg_path, "**", "AndroidManifest.xml"), recursive=True)
+def find_manifest(parent_dir):
+    matches = glob.glob(os.path.join(parent_dir, "**", "AndroidManifest.xml"), recursive=True)
     return matches[0] if matches else None
 
 
 def safeIsFile(path):
     return path and os.path.isfile(path)
+
+
+def getApksInFolder(directory):
+    return [f for f in os.listdir(directory) if f.endswith(".apk")]
+
+
+def isApk(path):
+    return os.path.isfile(path) and path.endswith(".apk")

@@ -21,23 +21,19 @@ source_dir ({source_dir})/
     )
 
 
-def handleDecompileAction(
-    pattern_source, regex_mode, source_dir, outputDir, decompileMode
-):
-    if not source_dir:
+def handleDecompileAction(pattern_source, regex_mode, source, outputDir, decompileMode):
+    if source and utils.isApk(source): # Case 1: single APK file provided
+        decompileSingleApk(source, outputDir, decompileMode)
+    elif not source: # Case 2: fall back to directory workflow
         with tempfile.TemporaryDirectory(prefix="apkshadow_") as temp_dir:
             utils.debug(
-                f"{GLOBALS.HIGHLIGHT}[+] No source_dir provided. Pulling APKs to temporary directory: {temp_dir}"
+                f"{GLOBALS.HIGHLIGHT}[+] No source provided. Pulling APKs to temporary directory: {temp_dir}"
             )
             pull_action.handlePullAction(pattern_source, regex_mode, temp_dir)
-            source_dir = temp_dir
-            decompileApks(
-                pattern_source, source_dir, outputDir, decompileMode, regex_mode
-            )
+            source = temp_dir
+            decompileApks(pattern_source, source, outputDir, decompileMode, regex_mode)
     else:
-        decompileApks(
-            pattern_source, source_dir, outputDir, decompileMode, regex_mode
-        )
+        decompileApks(pattern_source, source, outputDir, decompileMode, regex_mode)
 
 
 def decompileApks(
@@ -75,7 +71,7 @@ def decompileApks(
         exit(1)
 
     for pkg_path, pkg_name in tqdm(pkg_dirs, desc="Decompiling APKs", unit="apk"):
-        apk_files = [f for f in os.listdir(pkg_path) if f.endswith(".apk")]
+        apk_files = utils.getApksInFolder(pkg_path)
         if not apk_files:
             print(
                 f"{GLOBALS.WARNING}[!] No APKs in {pkg_path}, skipping.{GLOBALS.RESET}"
@@ -110,3 +106,29 @@ def decompileApks(
                 e.printHelperMessage(True)
 
 
+def decompileSingleApk(source, outputDir, decompileMode):
+    apk_path = os.path.abspath(source)
+    pkg_name = os.path.splitext(os.path.basename(apk_path))[0]
+    decompiled_dir = os.path.join(outputDir, pkg_name)
+    os.makedirs(decompiled_dir, exist_ok=True)
+
+    parser = Parser()
+    cached = parser.checkCached(apk_path)
+    if cached:
+        if GLOBALS.VERBOSE:
+            utils.debug(f"{GLOBALS.INFO}Apk {apk_path} already cached, skipping decompile")
+        return
+
+    try:
+        if decompileMode == "jadx":
+            cmdrunner.runJadx(apk_path, decompiled_dir)
+        elif decompileMode == "apktool":
+            cmdrunner.runApktool(apk_path, decompiled_dir)
+
+        manifest_path = utils.find_manifest(decompiled_dir)
+        parsed = parser.parseManifest(manifest_path)
+        parser.cacheManifest(apk_path, parsed)
+
+    except cmdrunner.CmdError as e:
+        e.printHelperMessage(True)
+    return

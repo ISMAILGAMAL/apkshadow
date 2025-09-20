@@ -38,7 +38,7 @@ class Parser:
         self.cache_dir.mkdir(parents=True, exist_ok=True)
 
         apk_hash = self.getApkHash(apk_path)
-        cache_file = self.cache_dir / f"{apk_hash}.json"
+        cache_file = os.path.join(self.cache_dir, f"{apk_hash}.json")
 
         # Convert to serializable form
         manifest_to_cache = {
@@ -88,7 +88,8 @@ class Parser:
                         tag=tag,
                         name=name,
                         exported=False,
-                        permission=None,
+                        permission="none",
+                        element=element,
                     )
                 )
 
@@ -115,6 +116,7 @@ class Parser:
                         name=name,
                         exported=exported,
                         permission=perm,
+                        element=element,
                     )
                 )
 
@@ -154,13 +156,7 @@ class Parser:
 
             # Rebuild Component objects
             components = [
-                Component(
-                    pkg=c["pkg"],
-                    tag=c["tag"],
-                    name=c["name"],
-                    exported=c["exported"],
-                    permission=c["permission"],
-                )
+                Component.from_dict(c)
                 for c in cached["components"]
             ]
 

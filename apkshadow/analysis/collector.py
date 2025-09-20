@@ -1,4 +1,5 @@
 from apkshadow.actions import decompile as decompile_action
+from apkshadow.actions import pull as pull_action
 from apkshadow.analysis.finding import Finding
 from apkshadow.parser import Parser
 import apkshadow.globals as GLOBALS
@@ -6,12 +7,14 @@ import apkshadow.filters as filters
 import apkshadow.utils as utils
 from tqdm import tqdm
 import tempfile
+import os
+
 
 def filterNonClaimedPermissions(source_directory, findings):
     """Filter which custom permissions are not declared in any manifest in source_directory.
 
     Args:
-        source_directory (str): Path to a directory containing decompiled APKs.
+        source_directory (str): Path to a directory containing APKs.
         findings (list[Finding]): List of Finding objects with 'custom' permissions.
 
     Returns:
@@ -20,21 +23,41 @@ def filterNonClaimedPermissions(source_directory, findings):
     pkg_dirs = filters.getFilteredDirectories(None, source_directory, False)
     declared_perms = set()
 
-    for pkg_path, _ in pkg_dirs:
-        manifest_path = utils.find_manifest(pkg_path)
-        if not utils.safeIsFile(manifest_path): # type: ignore
+    for pkg_path, _ in tqdm(pkg_dirs, desc="Scanning APKs for claimed permissions", unit="apk"):
+        apk_files = utils.getApksInFolder(pkg_path)
+        if not apk_files:
+            print(
+                f"{GLOBALS.WARNING}[!] No APKs in {pkg_path}, skipping.{GLOBALS.RESET}"
+            )
             continue
 
         parser = Parser()
-        parsed = parser.parseManifest(manifest_path)
-        if not parsed:
-            continue
+        for apk in apk_files:
+            apk_path = os.path.join(pkg_path, apk)
 
-        declared_perms = declared_perms.union({
-            comp.name
-            for comp in parsed["components"]
-            if comp.tag == "permission"
-        })
+            cached = parser.checkCached(apk_path)
+            if cached:
+                declared_perms = declared_perms.union(
+                    {
+                        comp.name
+                        for comp in cached["components"]
+                        if comp.tag == "permission"
+                    }
+                )
+
+                continue
+
+            with tempfile.TemporaryDirectory(prefix="apkshadow_Decompiled_") as temp_dir:
+                decompile_action.handleDecompileAction(None, False, apk_path, temp_dir, "apktool")
+                manifest_path = utils.find_manifest(temp_dir)
+                parsed = parser.parseManifest(manifest_path)
+
+                if not parsed:
+                    continue
+
+                declared_perms = declared_perms.union(
+                    {comp.name for comp in parsed["components"] if comp.tag == "permission"}
+                )
 
     nonClaimed = []
     for finding in findings:
@@ -95,21 +118,7 @@ def analyzePackages(pkg_dirs):
             f"{GLOBALS.WARNING}[+] Custom permissions found, scanning other APKs...{GLOBALS.RESET}"
         )
 
-        # pattern = "^("
-        # packages = filters.getPackagesFromDevice(None, False)
-        # parser = Parser()
-        # for i, package in enumerate(packages):
-        #     apk_path, pkg_name = package
-        #     if not parser.checkCached(apk_path, True):
-        #         if i != 0:
-        #             pattern += "|"
-        #         pattern += pkg_name
-        # pattern += ")$"
-        # print(pattern)
-        with tempfile.TemporaryDirectory(prefix="apkshadowDecompiled_") as temp_dir:
-            decompile_action.handleDecompileAction(
-                None,  False, None, temp_dir, "apktool"
-            )
-
+        with tempfile.TemporaryDirectory(prefix="apkshadow_Apks_") as temp_dir:
+            pull_action.handlePullAction(None, False, temp_dir)
             findings.extend(filterNonClaimedPermissions(temp_dir, custom_perm_findings))
     return findings

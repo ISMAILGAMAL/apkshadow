@@ -34,4 +34,4 @@ def handleAnalyzeAction(pattern_source,  regex_mode, source_dir, output_dir):
     render_terminal(findings, GLOBALS.VERBOSE)
 
     if output_dir:
-        render_xml(findings, GLOBALS.VERBOSE)
+        render_xml(findings, output_dir)
