@@ -1,6 +1,6 @@
 [project]
 name = "apkshadow"
-version = "0.1.2"
+version = "0.1.3"
 description = "Android APK automation tool for bug bounty"
 authors = [{name = "ISMAILSHADOW"}]
 dependencies = ["tqdm"]
