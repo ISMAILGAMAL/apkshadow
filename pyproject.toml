@@ -7,8 +7,8 @@ dependencies = ["tqdm"]
 license = "MIT"
 readme = "README.md"
 
-[tool.setuptools]
-packages = ["apkshadow"]
+[tool.setuptools.packages.find]
+include = ["apkshadow*"]
 
 [project.scripts]
 apkshadow = "apkshadow.cli:main"
