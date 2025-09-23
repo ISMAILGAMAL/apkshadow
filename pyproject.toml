@@ -10,6 +10,9 @@ readme = "README.md"
 [tool.setuptools.packages.find]
 include = ["apkshadow*"]
 
+[tool.setuptools.package-data]
+apkshadow = ["data/*.json"]
+
 [project.scripts]
 apkshadow = "apkshadow.cli:main"
 

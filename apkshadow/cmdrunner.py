@@ -1,3 +1,4 @@
+from tqdm import tqdm
 import apkshadow.globals as GLOBALS
 import apkshadow.utils as utils
 import subprocess
@@ -42,7 +43,7 @@ class AdbError(CmdError):
             error = f"Unknown error:\n{self.stderr.strip()}"
 
         if printError:
-            print(GLOBALS.ERROR + f"[X] {error}" + GLOBALS.RESET)
+            tqdm.write(GLOBALS.ERROR + f"[X] {error}" + GLOBALS.RESET)
         return error
 
 
@@ -52,17 +53,19 @@ class ApktoolError(CmdError):
 
     def printHelperMessage(self, printError=True):
         err = (self.stderr or "").lower()
+        apk_info = f"(APK: {self.cmd})"
 
         if "multiple resources" in err:
-            error = "Duplicate resources detected. Apktool cannot decode this APK's resources."
+            error = f"Duplicate resources detected {apk_info}. Apktool cannot decode this APK's resources."
         elif "brut.androlib.err" in err:
-            error = "Apktool internal error while decoding resources."
+            error = f"Apktool internal error while decoding resources {apk_info}."
         else:
-            error = f"Unknown apktool error:\n{self.stderr.strip()}"
+            error = f"Unknown apktool error on {apk_info}:\n{self.stderr.strip()}"
 
         if printError:
-            print(GLOBALS.ERROR + f"[X] {error}" + GLOBALS.RESET)
+            tqdm.write(GLOBALS.ERROR + f"[X] {error}" + GLOBALS.RESET)
         return error
+
 
 def runCommand(cmd, type, check, binary=False):
     """

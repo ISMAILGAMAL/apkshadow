@@ -1,3 +1,4 @@
+import copy
 from xml.etree import ElementTree as ET
 
 class Component:
@@ -30,19 +31,28 @@ class Component:
 
     
     def to_dict(self):
+        elem_copy = copy.deepcopy(self.element)
+        elem_copy.tail = None  # remove trailing text outside element. decompilation artifacts can cause errors when re-parsing.
+        for e in elem_copy.iter():
+            e.tail = None
         return {
             "pkg": self.pkg,
             "tag": self.tag,
             "name": self.name,
             "exported": self.exported,
             "permission": self.permission or "none",
-            "element": ET.tostring(self.element, encoding="unicode"),
+            "element": ET.tostring(elem_copy, encoding="unicode"),
         }
 
 
     @classmethod
     def from_dict(cls, data):
-        element = ET.fromstring(data["element"]) if data.get("element") else None
+        try:
+            element = ET.fromstring(data["element"]) if data.get("element") else None
+        except Exception as e:
+            print(data['element'])
+            print(e)
+            exit(1)
         return cls(
             pkg=data["pkg"],
             tag=data["tag"],
