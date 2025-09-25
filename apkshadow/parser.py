@@ -10,11 +10,8 @@ from apkshadow.analysis.manifestClasses.permission import Permission
 
 
 class Parser:
-    def __init__(self, cache_dir=None):
-        self.cache_dir = Path(
-            cache_dir or Path.home() / ".cache" / "apkshadow" / "manifests"
-        )
-        self.cache_dir.mkdir(parents=True, exist_ok=True)
+    def __init__(self):
+        GLOBALS.CACHE_DIR.mkdir(parents=True, exist_ok=True) # type: ignore
         self.parsed_manifest = None
 
     @staticmethod
@@ -37,10 +34,10 @@ class Parser:
         if not apk_path:
             raise ValueError("apk_path is required for caching")
 
-        self.cache_dir.mkdir(parents=True, exist_ok=True)
+        GLOBALS.CACHE_DIR.mkdir(parents=True, exist_ok=True)
 
         apk_hash = self.getApkHash(apk_path)
-        cache_file = os.path.join(self.cache_dir, f"{apk_hash}.json")
+        cache_file = os.path.join(GLOBALS.CACHE_DIR, f"{apk_hash}.json")
 
         # Convert to serializable form
         manifest_to_cache = {
@@ -170,7 +167,7 @@ class Parser:
         else:
             apk_hash = self.getApkHash(apk_path)
 
-        cache_file = self.cache_dir / f"{apk_hash}.json"
+        cache_file = GLOBALS.CACHE_DIR / f"{apk_hash}.json"
         if cache_file.exists():
             if GLOBALS.VERBOSE:
                 utils.debug(
@@ -199,3 +196,11 @@ class Parser:
             if GLOBALS.VERBOSE:
                 utils.debug(f"{GLOBALS.HIGHLIGHT}Loaded manifest from cache: {cache_file}{GLOBALS.RESET}")
             return parsed
+
+
+    @classmethod
+    def clearCache(cls):
+        if GLOBALS.CACHE_DIR.exists():
+            for file in GLOBALS.CACHE_DIR.iterdir():
+                if file.is_file():
+                    file.unlink()

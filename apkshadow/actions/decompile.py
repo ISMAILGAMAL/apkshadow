@@ -103,7 +103,7 @@ def decompileApks(
                 parser.cacheManifest(apk_path)
 
             except cmdrunner.CmdError as e:
-                e.printHelperMessage(True)
+                e.printHelperMessage()
 
 
 def decompileSingleApk(source, outputDir, decompileMode):

@@ -62,12 +62,7 @@ def filterNonClaimedPermissions(source_directory, findings):
             # not claimed anywhere -> escalate
             finding.perm_type = "custom-unclaimed"
             finding.risk_tier = "critical"
-            finding.summary = (
-                f"[+] Exported {finding.component.tag} {finding.component.name} "
-                f"with permission: {finding.component.permission or 'None'} "
-                f"({finding.perm_type}, {finding.risk_tier} risk)"
-                f"{GLOBALS.ERROR}(Not claimed by another app!)"
-            )
+            finding.build_summary("Not claimed by another app!")
             nonClaimed.append(finding)
         else:
             # declared somewhere — inspect protection levels

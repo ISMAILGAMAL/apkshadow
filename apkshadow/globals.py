@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -62,3 +63,5 @@ VERBOSE = False
 ANDROID_NS = "{http://schemas.android.com/apk/res/android}"
 
 DEVICE = None # Device id used for adb internally (Get with adb devices)
+
+CACHE_DIR = Path(Path.home() / ".cache" / "apkshadow" / "manifests")

@@ -1,7 +1,10 @@
 from apkshadow.actions import decompile as decompile_action
 from apkshadow.actions import analyze as analyze_action
+from apkshadow.actions import install as install_action
 from apkshadow.actions import list as list_action
 from apkshadow.actions import pull as pull_action
+from apkshadow.parser import Parser
+import apkshadow.globals as GLOBALS
 import apkshadow.utils as utils
 import argparse
 
@@ -113,6 +116,30 @@ def initAnalyzeParser(subparsers):
     )
 
 
+def initInstallParser(subparsers):
+    install_parser = subparsers.add_parser(
+        "install",
+        help="Install apks to device from local disk"
+    )
+
+    group = install_parser.add_mutually_exclusive_group()
+    group.add_argument(
+        "-f", "--filter", help="Package id or path to file containing package ids"
+    )
+    group.add_argument(
+        "-r",
+        "--regex",
+        help="Regex or path to file containing regexes to match package ids",
+    )
+
+    install_parser.add_argument(
+        "-s",
+        "--source",
+        default="./",
+        help="Directory containing APKs to install on device",
+    )
+
+
 def main():
     parser = argparse.ArgumentParser(description="Android APK automation tool")
     parser.add_argument(
@@ -124,6 +151,17 @@ def main():
         help="Target ADB device",
     )
 
+    parser.add_argument(
+        "--clear-cache",
+        action="store_true",
+        help="Clears the AndroidManifests caching which the application "
+    )
+
+    parser.add_argument(
+        "--cache-dir",
+        help="Directory where decompiled apks' parsed manifest representation is cached as json (to prevent decompiling several times)"
+    )
+
     subparsers = parser.add_subparsers(
         dest="action", required=True, help="Action to perform"
     )
@@ -132,13 +170,20 @@ def main():
     initPullParser(subparsers)
     initDecompileParser(subparsers)
     initAnalyzeParser(subparsers)
+    initInstallParser(subparsers)
 
     args = parser.parse_args()
 
     utils.setVerbose(args.verbose)
     utils.setDevice(args.device)
+    utils.setCacheDir(args.cache_dir)
     regex_mode = bool(args.regex)
     pattern_source = args.filter or args.regex
+    clear_cache = args.clear_cache
+
+    if clear_cache:
+        Parser.clearCache() 
+        print(f"{GLOBALS.HIGHLIGHT}Cache cleared: {GLOBALS.CACHE_DIR}{GLOBALS.RESET}")
 
     if args.action == "list":
         list_action.handleListAction(
@@ -162,3 +207,5 @@ def main():
         analyze_action.handleAnalyzeAction(
             pattern_source, regex_mode, args.source, args.output
         )
+    elif args.action == "install":
+        install_action.handleInstallAction(pattern_source, regex_mode, args.source)

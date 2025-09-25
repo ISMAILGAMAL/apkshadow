@@ -1,3 +1,4 @@
+from pathlib import Path
 import apkshadow.globals as GLOBALS
 from xml.dom import minidom
 from tqdm import tqdm
@@ -11,6 +12,10 @@ def setVerbose(flag):
 
 def setDevice(device):
     GLOBALS.DEVICE = device
+
+def setCacheDir(cache_dir):
+    if cache_dir:
+        GLOBALS.CACHE_DIR = cache_dir
 
 def debug(msg):
     if GLOBALS.VERBOSE:
