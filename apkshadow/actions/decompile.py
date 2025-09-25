@@ -85,12 +85,12 @@ def decompileApks(
             apk_path = os.path.join(pkg_path, apk)
             try:
                 parser = Parser()
-                cached = parser.checkCached(apk_path)
+                cached = parser.checkAndGetCached(apk_path)
 
                 if GLOBALS.VERBOSE:
                     utils.debug(f"{GLOBALS.INFO}Apk in: {apk_path} was parsed and cached before, skipping decompilation")
                     
-                if cached:
+                if cached and decompile_mode != "jadx":
                     continue
 
                 if decompile_mode == "jadx":
@@ -113,7 +113,7 @@ def decompileSingleApk(source, outputDir, decompileMode):
     os.makedirs(decompiled_dir, exist_ok=True)
 
     parser = Parser()
-    cached = parser.checkCached(apk_path)
+    cached = parser.checkAndGetCached(apk_path)
     if cached:
         if GLOBALS.VERBOSE:
             utils.debug(f"{GLOBALS.INFO}Apk {apk_path} already cached, skipping decompile")

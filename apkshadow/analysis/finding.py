@@ -9,7 +9,7 @@ class Finding:
 
     def to_dict(self):
         """For JSON or quick serialization"""
-        component_dict = self.component.to_dict() if hasattr(self.component, 'to_dict') else str(self.component)
+        component_dict = self.component.to_dict()
         
         return {
             "component": component_dict,

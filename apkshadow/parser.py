@@ -1,10 +1,12 @@
-from apkshadow.analysis.component import Component
+from apkshadow.analysis.manifestClasses.component import Component
 from apkshadow import cmdrunner, globals as GLOBALS, utils
 from xml.etree import ElementTree as ET
 from pathlib import Path
 import hashlib
 import json
 import os
+
+from apkshadow.analysis.manifestClasses.permission import Permission
 
 
 class Parser:
@@ -43,12 +45,33 @@ class Parser:
         # Convert to serializable form
         manifest_to_cache = {
             "package": manifest_to_cache["package"],
-            "components": [c.to_dict() for c in manifest_to_cache["components"]],
+            "components": [c.to_dict() for c in manifest_to_cache.get("components", [])],
+            "permissions": [p.to_dict() for p in manifest_to_cache.get("permissions", [])],
             "raw_xml": manifest_to_cache["raw_xml"],
         }
 
         with open(cache_file, "w") as f:
             json.dump(manifest_to_cache, f)
+
+        self.parsed_manifest = manifest_to_cache
+        return cache_file
+
+
+    def getExportedValueAndSource(self, element: ET.Element):
+        exported_attr = element.attrib.get(f"{GLOBALS.ANDROID_NS}exported", None)
+
+        # Normalize exported
+        if exported_attr is not None:
+            exported_value = exported_attr.lower() == "true"
+            exported_source = "explicit"
+        else:
+            # If no exported attribute but has intent-filters → implicitly exported (< Android 12)
+            has_intent_filters = len(element.findall("intent-filter")) > 0
+            exported_value = has_intent_filters
+            exported_source = "implicit" if has_intent_filters else "default-false"
+
+        return [exported_value, exported_source]
+
 
     def parseManifest(self, manifest_path):
         """Parse an AndroidManifest.xml file.
@@ -71,24 +94,24 @@ class Parser:
             pkg_declared = root.attrib.get("package")
             application = root.find("application")
             components = []
-
+            permissions = []
+            
             # First, capture manifest-level permissions (<permission> often appears here)
             for element in root:
                 tag = element.tag.split("}")[-1]
                 if tag != "permission":
                     continue
                 name = element.attrib.get(f"{GLOBALS.ANDROID_NS}name")
-                # TODO maybe also collect protectionLevel
+                protectionLevel = element.attrib.get(f"{GLOBALS.ANDROID_NS}protectionLevel", "normal")
 
                 if not name:
                     continue
-                components.append(
-                    Component(
+
+                permissions.append(
+                    Permission(
                         pkg=pkg_declared,
-                        tag=tag,
                         name=name,
-                        exported=False,
-                        permission="none",
+                        protectionLevel=protectionLevel,
                         element=element,
                     )
                 )
@@ -106,23 +129,25 @@ class Parser:
                 if not name:
                     continue
 
-                exported = element.attrib.get(f"{GLOBALS.ANDROID_NS}exported", "false")
                 perm = element.attrib.get(f"{GLOBALS.ANDROID_NS}permission", "none")
+                [exported_value, exported_source] = self.getExportedValueAndSource(element)
 
                 components.append(
                     Component(
                         pkg=pkg_declared,
                         tag=tag,
                         name=name,
-                        exported=exported,
+                        exported=exported_value,
                         permission=perm,
                         element=element,
+                        exported_source=exported_source, 
                     )
                 )
 
             self.parsed_manifest = {
                 "package": pkg_declared,
                 "components": components,
+                "permissions": permissions,
                 "raw_xml": ET.tostring(root, encoding="unicode"),
             }
             return self.parsed_manifest
@@ -137,7 +162,7 @@ class Parser:
             )
         return None
 
-    def checkCached(self, apk_path, from_mobile=False):
+    def checkAndGetCached(self, apk_path, from_mobile=False):
         """Return parsed manifest from cache if available, else None."""
 
         if from_mobile:
@@ -154,15 +179,23 @@ class Parser:
             with open(cache_file, "r", encoding="utf-8") as f:
                 cached = json.load(f)
 
-            # Rebuild Component objects
-            components = [
-                Component.from_dict(c)
-                for c in cached["components"]
-            ]
+            # Re-create objects
+            components = []
+            for c in cached.get("components", []):
+                components.append(Component.from_dict(c))
 
-            return {
-                "package": cached["package"],
+            permissions = []
+            for p in cached.get("permissions", []):
+                permissions.append(Permission.from_dict(p))
+
+            parsed = {
+                "package": cached.get("package"),
                 "components": components,
-                "raw_xml": cached["raw_xml"],
+                "permissions": permissions,
+                "raw_xml": cached.get("raw_xml"),
             }
-        return None
+
+            self.parsed_manifest = parsed
+            if GLOBALS.VERBOSE:
+                utils.debug(f"{GLOBALS.HIGHLIGHT}Loaded manifest from cache: {cache_file}{GLOBALS.RESET}")
+            return parsed

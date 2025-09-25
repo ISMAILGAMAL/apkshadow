@@ -21,7 +21,7 @@ def filterNonClaimedPermissions(source_directory, findings):
         list[Finding]: Findings with un-declared custom permissions and upgraded to critical risk.
     """
     pkg_dirs = filters.getFilteredDirectories(None, source_directory, False)
-    declared_perms = set()
+    declared_perms = {}
 
     for pkg_path, _ in tqdm(pkg_dirs, desc="Scanning APKs for claimed permissions", unit="apk"):
         apk_files = utils.getApksInFolder(pkg_path)
@@ -35,33 +35,31 @@ def filterNonClaimedPermissions(source_directory, findings):
         for apk in apk_files:
             apk_path = os.path.join(pkg_path, apk)
 
-            cached = parser.checkCached(apk_path)
+            cached = parser.checkAndGetCached(apk_path)
             if cached:
-                declared_perms = declared_perms.union(
-                    {
-                        comp.name
-                        for comp in cached["components"]
-                        if comp.tag == "permission"
-                    }
-                )
+                parsed = cached
+            else:
+                with tempfile.TemporaryDirectory(prefix="apkshadow_Decompiled_") as temp_dir:
+                    decompile_action.handleDecompileAction(None, False, apk_path, temp_dir, "apktool")
+                    parsed = parser.checkAndGetCached(apk_path)
 
+            if not parsed:
                 continue
 
-            with tempfile.TemporaryDirectory(prefix="apkshadow_Decompiled_") as temp_dir:
-                decompile_action.handleDecompileAction(None, False, apk_path, temp_dir, "apktool")
-                manifest_path = utils.find_manifest(temp_dir)
-                parsed = parser.parseManifest(manifest_path)
-
-                if not parsed:
-                    continue
-
-                declared_perms = declared_perms.union(
-                    {comp.name for comp in parsed["components"] if comp.tag == "permission"}
-                )
+            for perm in parsed.get("permissions", []):
+                name = perm.name
+                prot = perm.protectionLevel
+                declared_perms[name] = prot
 
     nonClaimed = []
     for finding in findings:
-        if finding.component.permission not in declared_perms:
+        perm_name = finding.component.permission
+
+        if not perm_name or perm_name.lower() == "none":
+            continue
+
+        if perm_name not in declared_perms:
+            # not claimed anywhere -> escalate
             finding.perm_type = "custom-unclaimed"
             finding.risk_tier = "critical"
             finding.summary = (
@@ -71,6 +69,19 @@ def filterNonClaimedPermissions(source_directory, findings):
                 f"{GLOBALS.ERROR}(Not claimed by another app!)"
             )
             nonClaimed.append(finding)
+        else:
+            # declared somewhere — inspect protection levels
+            prot_levels = declared_perms[perm_name]
+
+            if "dangerous" in prot_levels or "runtime" in prot_levels:
+                finding.perm_type = "custom-declared-dangerous"
+                finding.risk_tier = "medium"
+            elif "signature" in prot_levels or "knownSigner" in prot_levels:
+                finding.perm_type = "custom-declared-signature"
+                finding.risk_tier = "low"
+            else:
+                finding.perm_type = "custom-declared"
+                finding.risk_tier = "low"
     return nonClaimed
 
 
