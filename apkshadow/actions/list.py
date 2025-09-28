@@ -4,9 +4,9 @@ import apkshadow.utils as utils
 import os
 
 def handleListAction(pattern_source, regex_mode, outputFilePath):
-    pkgs = filters.getPackagesFromDevice(pattern_source, regex_mode)
+    grouped_apks = filters.getPackagesFromDevice(pattern_source, regex_mode)
 
-    if not pkgs:
+    if not grouped_apks:
         print(f"{GLOBALS.WARNING}[-] No packages match the filters.{GLOBALS.RESET}")
         return
     
@@ -18,8 +18,8 @@ def handleListAction(pattern_source, regex_mode, outputFilePath):
         outputFile = None
         print(f"{GLOBALS.SUCCESS}[+] Packages matching filters:{GLOBALS.RESET}")
         
-    for apk_path, package_name in pkgs:
-        utils.debug(f"Path: {apk_path}")
+    for package_name, apk_paths in grouped_apks.items():
+        utils.debug(f"Apk Paths: {apk_paths}")
 
         if outputFile:
             outputFile.write(f"{package_name}\n")

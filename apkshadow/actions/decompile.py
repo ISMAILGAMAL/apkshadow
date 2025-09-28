@@ -11,13 +11,13 @@ import os
 
 def printCorrectLayoutMessage(source_dir):
     print(
-        f"""{GLOBALS.ERROR}[X] No subdirectories found in source_dir
+        f"""{GLOBALS.ERROR}[X] No APKs found in source_dir
 {GLOBALS.WARNING}Expected layout:
 source_dir ({source_dir})/
-├── com.example1.app/
-│   └── example1.apk
-└── com.example2.io/
-    └── base.apk{GLOBALS.RESET}"""
+├── app1.apk
+├── app2.apk
+└── split_config.arm64_v8a.apk
+{GLOBALS.RESET}"""
     )
 
 
@@ -64,25 +64,17 @@ def decompileApks(
         )
         exit(1)
 
-    pkg_dirs = filters.getFilteredDirectories(pattern_source, source_dir, regex_mode)
+    grouped_apks = filters.getFilteredApks(pattern_source, source_dir, regex_mode)
 
-    if not pkg_dirs:
+    if not grouped_apks:
         printCorrectLayoutMessage(source_dir)
         exit(1)
 
-    for pkg_path, pkg_name in tqdm(pkg_dirs, desc="Decompiling APKs", unit="apk"):
-        apk_files = utils.getApksInFolder(pkg_path)
-        if not apk_files:
-            print(
-                f"{GLOBALS.WARNING}[!] No APKs in {pkg_path}, skipping.{GLOBALS.RESET}"
-            )
-            continue
-
+    for pkg_name, apk_paths in tqdm(grouped_apks.items(), desc="Decompiling APKs", unit="apk"):
         decompiled_dir = os.path.join(output_dir, pkg_name)
         os.makedirs(decompiled_dir, exist_ok=True)
 
-        for apk in apk_files:
-            apk_path = os.path.join(pkg_path, apk)
+        for apk_path in apk_paths:
             try:
                 parser = Parser()
                 cached = parser.checkAndGetCached(apk_path)
@@ -98,7 +90,7 @@ def decompileApks(
                 elif decompile_mode == "apktool":
                     cmdrunner.runApktool(apk_path, decompiled_dir)
 
-                manifest_path = utils.find_manifest(decompiled_dir)
+                manifest_path = utils.findManifest(decompiled_dir)
                 parser.parseManifest(manifest_path)
                 parser.cacheManifest(apk_path)
 
@@ -108,8 +100,8 @@ def decompileApks(
 
 def decompileSingleApk(source, outputDir, decompileMode):
     apk_path = os.path.abspath(source)
-    pkg_name = os.path.splitext(os.path.basename(apk_path))[0]
-    decompiled_dir = os.path.join(outputDir, pkg_name)
+    pkg_name = utils.getPackageNameFromApkFile(apk_path) 
+    decompiled_dir = os.path.join(outputDir, pkg_name) # type: ignore
     os.makedirs(decompiled_dir, exist_ok=True)
 
     parser = Parser()
@@ -125,7 +117,7 @@ def decompileSingleApk(source, outputDir, decompileMode):
         elif decompileMode == "apktool":
             cmdrunner.runApktool(apk_path, decompiled_dir)
 
-        manifest_path = utils.find_manifest(decompiled_dir)
+        manifest_path = utils.findManifest(decompiled_dir)
         parsed = parser.parseManifest(manifest_path)
         parser.cacheManifest(apk_path, parsed)
 

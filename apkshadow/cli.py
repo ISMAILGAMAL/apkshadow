@@ -99,6 +99,12 @@ def initAnalyzeParser(subparsers):
     )
 
     analyze_parser.add_argument(
+        "--raw-apks",
+        action="store_true",
+        help="Used if the source directory contains raw apks and not decompiled apks' manifests",
+    )
+
+    analyze_parser.add_argument(
         "-o",
         "--output",
         default=None,
@@ -205,7 +211,7 @@ def main():
         )
     elif args.action == "analyze":
         analyze_action.handleAnalyzeAction(
-            pattern_source, regex_mode, args.source, args.output
+            pattern_source, regex_mode, args.source, args.output, args.raw_apks
         )
     elif args.action == "install":
         install_action.handleInstallAction(pattern_source, regex_mode, args.source)

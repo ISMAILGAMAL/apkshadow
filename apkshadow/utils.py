@@ -1,9 +1,10 @@
-from pathlib import Path
+import re
+from apkshadow import cmdrunner
 import apkshadow.globals as GLOBALS
 from xml.dom import minidom
 from tqdm import tqdm
+from glob import glob
 import json
-import glob
 import os
 
 
@@ -40,8 +41,8 @@ def loadJsonFile(path):
         return json.load(file)
     
 
-def find_manifest(parent_dir):
-    matches = glob.glob(os.path.join(parent_dir, "**", "AndroidManifest.xml"), recursive=True)
+def findManifest(parent_dir):
+    matches = glob(os.path.join(parent_dir, "**", "AndroidManifest.xml"), recursive=True)
     return matches[0] if matches else None
 
 
@@ -49,9 +50,26 @@ def safeIsFile(path):
     return path and os.path.isfile(path)
 
 
-def getApksInFolder(directory):
-    return [f for f in os.listdir(directory) if f.endswith(".apk")]
+def getManifestsInFolder(source_dir):
+    return glob(f"{source_dir}/**/AndroidManifest.xml", recursive=True)
+
+
+def getApksInFolder(source_dir):
+    apks = glob(f"{source_dir}/**/*.apk", recursive=True)
+    return [apk for apk in apks if os.path.isfile(apk)]
 
 
 def isApk(path):
     return os.path.isfile(path) and path.endswith(".apk")
+
+
+def getPackageNameFromApkFile(apk_path):
+    try:
+        result = cmdrunner.runAapt(["dump", "badging", apk_path])
+        for line in result.stdout.splitlines():
+            if line.startswith("package:"):
+                match = re.search(r"name='([^']+)'", line)
+                if match:
+                    return match.group(1)
+    except cmdrunner.AaptError as e:
+        e.printHelperMessage()

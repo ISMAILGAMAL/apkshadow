@@ -65,6 +65,28 @@ class ApktoolError(CmdError):
         if printError:
             tqdm.write(GLOBALS.ERROR + f"[X] {error}" + GLOBALS.RESET)
         return error
+    
+
+class AaptError(CmdError):
+    def __init__(self, cmd, result):
+        super().__init__(cmd, result)
+
+    def printHelperMessage(self, printError=True):
+        err = (self.stderr or "").lower()
+
+        if "no androidmanifest.xml found" in err:
+            error = "No AndroidManifest.xml found. This is common for split APKs (ignore)."
+        elif "badging" in err and "failed" in err:
+            error = "aapt badging dump failed. Ensure you are passing a valid APK."
+        elif "not found" in err and "aapt" in err:
+            error = "aapt binary not found. Install Android build-tools and add to PATH."
+        else:
+            error = f"Unknown aapt error:\n{self.stderr.strip()}"
+
+        if printError:
+            tqdm.write(GLOBALS.ERROR + f"[X] {error}" + GLOBALS.RESET)
+        return error
+
 
 
 def runCommand(cmd, type, check, binary=False):
@@ -86,6 +108,8 @@ def runCommand(cmd, type, check, binary=False):
             raise AdbError(cmd_display, result)
         elif type == "apktool":
             raise ApktoolError(cmd_display, result)
+        elif type == "aapt":
+            raise AaptError(cmd_display, result)
         else:
             raise CmdError(cmd_display, result)
 
@@ -103,6 +127,11 @@ def runAdb(args, binary=False):
         cmd += ["-s", GLOBALS.DEVICE]
     cmd += list(args)
     return runCommand(cmd, type="adb", check=True, binary=binary)
+
+
+def runAapt(args, binary=False):
+    cmd = ["aapt"] + list(args)
+    return runCommand(cmd, type="aapt", check=True, binary=binary)
 
 
 def runJadx(apk_path, out_dir, no_res=False):

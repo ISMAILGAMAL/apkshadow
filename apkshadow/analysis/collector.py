@@ -20,21 +20,12 @@ def filterNonClaimedPermissions(source_directory, findings):
     Returns:
         list[Finding]: Findings with un-declared custom permissions and upgraded to critical risk.
     """
-    pkg_dirs = filters.getFilteredDirectories(None, source_directory, False)
+    grouped_apks = filters.getFilteredApks(None, source_directory, False)
     declared_perms = {}
 
-    for pkg_path, _ in tqdm(pkg_dirs, desc="Scanning APKs for claimed permissions", unit="apk"):
-        apk_files = utils.getApksInFolder(pkg_path)
-        if not apk_files:
-            print(
-                f"{GLOBALS.WARNING}[!] No APKs in {pkg_path}, skipping.{GLOBALS.RESET}"
-            )
-            continue
-
+    for pkg_name, apk_paths in tqdm(grouped_apks.items(), desc="Scanning APKs for claimed permissions", unit="apk"):
         parser = Parser()
-        for apk in apk_files:
-            apk_path = os.path.join(pkg_path, apk)
-
+        for apk_path in apk_paths:
             cached = parser.checkAndGetCached(apk_path)
             if cached:
                 parsed = cached
@@ -80,14 +71,17 @@ def filterNonClaimedPermissions(source_directory, findings):
     return nonClaimed
 
 
-def analyzePackages(pkg_dirs):
-    """Analyze APK manifests for exported components and classify risks.
+def analyzePackages(grouped, analyze_raw_apks=False):
+    """Analyze manifests for exported components and classify risks.
+
     Args:
-        pkg_dirs (list[tuple[str, str]]): List of (path, pkg_name) tuples for APKs to analyze.
-        device (str): Target device identifier, passed to the decompiler.
+        pkg_dirs (list[tuple[str, str]]): List of (path, pkg_name) tuples
+            - If from_apk=True → these are APK file paths
+            - If from_apk=False → these are decompiled directories
+        from_apk (bool): Whether to analyze directly from APKs instead of decompiled dirs.
 
     Returns:
-        list[Finding]: List of all analyzed findings.
+        list[Finding]
     """
     if not GLOBALS.PERMISSIONS:
         GLOBALS.PERMISSIONS = utils.loadJsonFile(GLOBALS.PERMISSIONS_FILE_PATH)
@@ -95,36 +89,41 @@ def analyzePackages(pkg_dirs):
     findings = []
     custom_perm_findings = []
 
-    # First pass: analyze given packages
-    for pkg_path, _ in tqdm(pkg_dirs, desc="Analyzing manifests", unit="apk"):
-        manifest_path = utils.find_manifest(pkg_path)
-
-        if GLOBALS.VERBOSE and manifest_path:
-            utils.debug(f"Found AndroidManifest.xml at {manifest_path}")
-
+    for pkg_name, paths in tqdm(grouped.items(), desc="Analyzing manifests", unit="manifest"):
         parser = Parser()
-        parsed = parser.parseManifest(manifest_path)
-        if not parsed:
-            continue
 
-        for comp in parsed["components"]:
-            if not comp.exported:
+        for path in paths:
+            if analyze_raw_apks:
+                parsed = parser.checkAndGetCached(path)
+                if not parsed:
+                    with tempfile.TemporaryDirectory(prefix="apkshadow_Decompile_") as temp_dir:
+                        decompile_action.handleDecompileAction(None, False, path, temp_dir, "apktool")
+                        manifest_path = utils.findManifest(temp_dir)
+                        if not manifest_path:
+                            continue
+                        parsed = parser.parseManifest(manifest_path)
+                        if parsed:
+                            parser.cacheManifest(path, parsed)
+            else:
+                parsed = parser.parseManifest(path)
+
+            if not parsed:
                 continue
 
-            finding = Finding(comp)
+            for comp in parsed["components"]:
+                if not comp.exported:
+                    continue
 
-            if finding.perm_type == "custom":
-                custom_perm_findings.append(finding)
-            else:
-                findings.append(finding)
+                finding = Finding(comp)
+                if finding.perm_type == "custom":
+                    custom_perm_findings.append(finding)
+                else:
+                    findings.append(finding)
 
-    # Second pass: check if custom permissions are claimed elsewhere
     if custom_perm_findings:
-        print(
-            f"{GLOBALS.WARNING}[+] Custom permissions found, scanning other APKs...{GLOBALS.RESET}"
-        )
-
+        print(f"{GLOBALS.WARNING}[+] Custom permissions found, scanning other APKs...{GLOBALS.RESET}")
         with tempfile.TemporaryDirectory(prefix="apkshadow_Apks_") as temp_dir:
             pull_action.handlePullAction(None, False, temp_dir)
             findings.extend(filterNonClaimedPermissions(temp_dir, custom_perm_findings))
+
     return findings

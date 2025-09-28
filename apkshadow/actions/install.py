@@ -1,5 +1,6 @@
 from apkshadow import cmdrunner, filters, utils
 import apkshadow.globals as GLOBALS
+from apkutils import APK
 from tqdm import tqdm
 import os
 
@@ -11,18 +12,9 @@ def handleInstallAction(pattern_source, regex_mode, source_dir):
         )
         exit(1)
 
-    pkg_dirs = filters.getFilteredDirectories(pattern_source, source_dir, regex_mode)
+    grouped_apks = filters.getFilteredApks(pattern_source, source_dir, regex_mode)
 
-    for pkg_path, _ in tqdm(pkg_dirs, desc="Installing APKs", unit="apk"):
-        apk_files = utils.getApksInFolder(pkg_path)
-        apk_paths = [os.path.join(pkg_path, apk) for apk in apk_files]
-        
-        if not apk_paths:
-            print(
-                f"{GLOBALS.WARNING}[!] No APKs in {pkg_path}, skipping.{GLOBALS.RESET}"
-            )
-            continue
-
+    for pkg_name, apk_paths in tqdm(grouped_apks.items(), desc="Installing APKs", unit="apk"):
         try:
             if len(apk_paths) > 1:
                 cmdrunner.runAdb(["install-multiple"] + apk_paths)

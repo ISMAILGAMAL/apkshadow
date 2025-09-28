@@ -1,5 +1,7 @@
+from xml.etree import ElementTree as ET
+from apkshadow import cmdrunner, utils
 import apkshadow.globals as GLOBALS
-from apkshadow import cmdrunner
+from collections import defaultdict
 import os
 import re
 
@@ -39,40 +41,116 @@ def getPackagesFromDevice(pattern_source, regex_mode):
 
     pkgs = []
     for package in result.stdout.splitlines():
-        match = re.match(r"package:(.*\.apk)=(.*)", package)
-        apk_path = match.group(1)  # type: ignore
-        package_name = match.group(2)  # type: ignore
-        pkgs.append([apk_path, package_name])
+        match = re.match(r"package:(?:.*\.apk)=(.*)", package)
+        if match:
+            package_name = match.group(1) 
+            pkgs.append(package_name)
 
-    return filterPackageNames(patterns, pkgs, regex_mode)
+    filtered = filterPackageNames(patterns, pkgs, regex_mode)
 
+    grouped = defaultdict(list)
+    for pkg_name in filtered:
+        try:
+            result = cmdrunner.runAdb(["shell", "pm", "path", pkg_name])
+            for l in result.stdout.splitlines():
+                match = re.match(r"package:(.*\.apk)", l)
+                if match:
+                    grouped[pkg_name].append(match.group(1))
+        except cmdrunner.AdbError as e:
+            e.printHelperMessage()
+            exit(e.returncode)
 
-def getFilteredDirectories(pattern_source, parent_dir, regex_mode):
-    patterns = loadPatterns(pattern_source)
+    return grouped
 
-    if regex_mode:
-        patterns = validateRegex(patterns)
-
-    if not os.path.isdir(parent_dir):
-        print(f"{GLOBALS.ERROR}[X] Source is not a directory: {parent_dir}")
-        exit(1)
-
-    pkgs = []
-    for pkg_name in os.listdir(parent_dir):
-        pkg_path = os.path.join(parent_dir, pkg_name)
-        if os.path.isdir(pkg_path):
-            pkgs.append([pkg_path, pkg_name])            
-    
-    return filterPackageNames(patterns, pkgs, regex_mode)
 
 
 def filterPackageNames(patterns, packages, regex_mode):
-    filtered = []
-    for path, pkg_name in packages:
+    selected = []
+    for pkg_name in packages:
         if not patterns:
-            filtered.append([path, pkg_name])
-        elif regex_mode and any(re.search(p, pkg_name) for p in patterns):
-            filtered.append([path, pkg_name])
+            selected.append(pkg_name)
+        elif regex_mode and any(p.search(pkg_name) for p in patterns):
+            selected.append(pkg_name)
         elif not regex_mode and pkg_name in patterns:
-            filtered.append([path, pkg_name])
+            selected.append(pkg_name)
+    return selected
+
+
+
+def getGroupedApksFromDir(source_dir):
+    if not os.path.isdir(source_dir):
+        print(f"{GLOBALS.ERROR}[X] Source is not a directory: {source_dir}")
+        exit(1)
+
+    apks = utils.getApksInFolder(source_dir)
+
+    grouped = defaultdict(list)
+    for apk_path in apks:
+        pkg_name = utils.getPackageNameFromApkFile(apk_path)
+        grouped[pkg_name].append(apk_path)
+
+    return grouped
+
+
+def getFilteredApks(pattern_source, source_dir, regex_mode):
+    patterns = loadPatterns(pattern_source)
+    if regex_mode:
+        patterns = validateRegex(patterns)
+
+    grouped = getGroupedApksFromDir(source_dir)
+    return filterGroupedApks(patterns, grouped, regex_mode)
+
+
+def filterGroupedApks(patterns, grouped, regex_mode):
+    filtered = {}
+    for pkg_name, apk_paths in grouped.items():
+        if not patterns:
+            filtered[pkg_name] = apk_paths
+        elif regex_mode and any(p.search(pkg_name) for p in patterns):
+            filtered[pkg_name] = apk_paths
+        elif not regex_mode and pkg_name in patterns:
+            filtered[pkg_name] = apk_paths
+    return filtered
+
+
+def getGroupedManifestsFromDir(source_dir):
+    if not os.path.isdir(source_dir):
+        print(f"{GLOBALS.ERROR}[X] Source is not a directory: {source_dir}")
+        exit(1)
+
+    manifests = utils.getManifestsInFolder(source_dir)
+
+    grouped = defaultdict(list)
+    for manifest_path in manifests:
+        try:
+            root = ET.parse(manifest_path).getroot()
+            pkg_name = root.attrib.get("package")
+            if not pkg_name:
+                pkg_name = f"unknown_{os.path.basename(manifest_path)}"
+        except Exception:
+            print(f"{GLOBALS.ERROR}[X] Couldn't parse manifest: {manifest_path}")
+
+        grouped[pkg_name].append(manifest_path)
+
+    return grouped
+
+
+def getFilteredManifests(pattern_source, source_dir, regex_mode):
+    patterns = loadPatterns(pattern_source)
+    if regex_mode:
+        patterns = validateRegex(patterns)
+
+    grouped = getGroupedManifestsFromDir(source_dir)
+    return filterGroupedManifests(patterns, grouped, regex_mode)
+
+
+def filterGroupedManifests(patterns, grouped, regex_mode):
+    filtered = {}
+    for pkg_name, manifest_paths in grouped.items():
+        if not patterns:
+            filtered[pkg_name] = manifest_paths
+        elif regex_mode and any(p.search(pkg_name) for p in patterns):
+            filtered[pkg_name] = manifest_paths
+        elif not regex_mode and pkg_name in patterns:
+            filtered[pkg_name] = manifest_paths
     return filtered
